@@ -3,7 +3,7 @@
 # ==========================================
 
 resource "aws_vpc" "main" {
-  #checkov:skip=CKV2_AWS_11:Flow Logs entram na fase 3, depois da chave KMS de logs (DECISIONS D-11)
+  #checkov:skip=CKV2_AWS_11:Os Flow Logs desta VPC sao criados no modulo vpc_flow_logs, fora deste modulo (DECISIONS D-11)
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true

@@ -74,4 +74,20 @@ O projeto é **alinhado a boas práticas** de segurança e resiliência (criptog
 
 ## D-11. VPC Flow Logs ficam para a fase 3
 
-Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave KMS de logs, que só existe a partir da fase 3. Criá-los antes obrigaria a criar o log group sem criptografia e alterá-lo depois. O checkov CKV2_AWS_11 está dispensado na VPC com esta justificativa, e o skip sai quando os Flow Logs forem ligados.
+Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave KMS de logs, que só existe a partir da fase 3. Criá-los antes obrigaria a criar o log group sem criptografia e alterá-lo depois. Na fase 3 eles passaram a existir, no módulo `vpc_flow_logs`. O skip do checkov CKV2_AWS_11 continua na VPC porque o recurso de Flow Logs fica em outro módulo; se o checkov reconhecer a ligação entre os módulos, o skip pode sair.
+
+## D-12. Flow Logs: role com mínimo privilégio, uma exceção inevitável
+
+- **Destino:** CloudWatch Logs, com retenção de 365 dias e criptografia pela chave de logs da própria região. Alternativa não usada: S3, mais barato para volume alto, mas aqui o tráfego é inexistente e o CloudWatch facilita consulta e alarmes.
+- **Role:** assumida só pelo serviço `vpc-flow-logs.amazonaws.com`, com `aws:SourceAccount` para evitar o problema do "confused deputy". O nome da role inclui o rótulo da região, porque IAM é global e as duas instâncias do módulo colidiriam.
+- **Permissões:** `logs:CreateLogStream`, `logs:PutLogEvents` e `logs:DescribeLogStreams` só no log group dos Flow Logs. `logs:DescribeLogGroups` precisa de `Resource: "*"` porque é uma chamada de conta; é a única exceção, e o checkov CKV_AWS_356 está dispensado nela. A política segue o exemplo da documentação da AWS, mas só um `apply` confirmaria que a entrega funciona; o `plan` não verifica isso.
+
+## D-13. KMS: duas chaves multi-region
+
+- **Duas chaves, uma por finalidade:** dados (Aurora e S3) e logs (Flow Logs, CloudTrail, WAF). Se uma vazar ou for desativada, a outra não é afetada, e cada uma tem sua trilha no CloudTrail.
+- **Multi-region:** a chave primária fica em sa-east-1 e a réplica em us-east-1 tem o mesmo ID e o mesmo material. Dado criptografado numa região pode ser descriptografado na outra sem reencriptar, o que sustenta o Aurora Global e o S3 CRR. A réplica é uma chave própria, com key policy e custo próprios (aproximadamente US$ 1 por chave por mês, a confirmar na fase 10).
+- **Key policy de dados:** a conta administra mas não usa direto; o uso só vale via RDS ou S3 da região (`kms:ViaService`), de chamadas desta conta (`kms:CallerAccount`). Grants só para recursos da AWS.
+- **Key policy de logs:** só o CloudWatch Logs da região, e só para log groups cujo nome começa com `/banco-rio/` ou `aws-waf-logs-banco-rio`. O CloudTrail entra na fase 8.
+- **Rotação anual** ligada na primária; a réplica acompanha a primária.
+- **Resource `*` nas key policies:** numa key policy, `*` significa "esta chave". Os skips do checkov CKV_AWS_109, 111 e 356 nas policies apontam para esta decisão.
+- **Abrimos mão de:** chaves gerenciadas pela AWS (sem controle da policy), uma chave por serviço (mais isolamento, mais custo) e CloudHSM (D-08).

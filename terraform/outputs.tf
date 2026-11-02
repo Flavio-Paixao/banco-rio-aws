@@ -37,3 +37,23 @@ output "dr_private_subnet_ids" {
   description = "Subnets privadas da regiao de DR"
   value       = module.network_dr.private_subnet_ids
 }
+
+output "data_key_arn" {
+  description = "Chave de dados multi-region (primaria, sa-east-1)"
+  value       = module.kms.data_key_arn
+}
+
+output "data_key_replica_arn" {
+  description = "Replica da chave de dados (DR, us-east-1)"
+  value       = module.kms.data_key_replica_arn
+}
+
+output "logs_key_arn" {
+  description = "Chave de logs multi-region (primaria, sa-east-1)"
+  value       = module.kms.logs_key_arn
+}
+
+output "logs_key_replica_arn" {
+  description = "Replica da chave de logs (DR, us-east-1)"
+  value       = module.kms.logs_key_replica_arn
+}
