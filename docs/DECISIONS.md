@@ -118,3 +118,14 @@ Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave 
 - **Meta de projeto (não é medição):** RPO dos objetos na faixa de minutos, sem garantia contratual.
 - **Skips do checkov:** CKV_AWS_144 só no bucket de destino (replicar de volta não é necessário); CKV_AWS_18 e CKV2_AWS_62 nos dois buckets (sem server access logging e sem consumidor de eventos; a trilha de acessos vem do CloudTrail).
 - **Não usado:** S3 Object Lock (irreversível em modo compliance; decisão adiada), S3 Multi-Region Access Points (outro estudo), Replication Time Control, Intelligent-Tiering, Macie (D-07) e replicação para uma terceira região.
+
+## D-16. Borda: ALB, ACM e WAF em cada região
+
+- **ALB sem backend:** um ALB público por região, nas subnets públicas, com resposta fixa (HTTP 200 em texto). Ele é o alvo do WAF e do health check do Route 53 (fase 7). Não há target group nem instâncias (D-04). `drop_invalid_header_fields` ligado.
+- **Listeners:** a porta 80 só redireciona para a 443 (HTTP 301). A 443 usa a política TLS `ELBSecurityPolicy-TLS13-1-2-2021-06`, que aceita TLS 1.2 e 1.3.
+- **Certificado ACM:** um por região, para o domínio **fictício** `banco-rio.example.com`. Não existe `aws_acm_certificate_validation`, porque a validação por DNS exigiria um domínio real. Consequência: o `plan` funciona, mas num `apply` real o listener HTTPS não conseguiria usar um certificado que nunca foi emitido. É um limite do estudo, não um erro de desenho.
+- **WAF (REGIONAL):** quatro grupos de regras gerenciadas da AWS (Common, Known Bad Inputs, SQL Injection e IP Reputation) e uma regra própria que bloqueia mais de 1000 requisições por IP em 5 minutos. A ação padrão é permitir. O WAF é uma camada a mais, não substitui validação na aplicação.
+- **Logs do WAF:** CloudWatch Logs, com nome `aws-waf-logs-...` (exigência do WAF), retenção de 365 dias e criptografia pela chave de logs da região. As entregas dependem de uma resource policy do CloudWatch Logs. Os cabeçalhos `authorization` e `cookie` são omitidos dos logs. Se a combinação de KMS com a entrega de logs do WAF funciona, só um `apply` diria.
+- **Sem access logs do ALB:** eles só aceitam bucket com SSE-S3, não KMS, o que quebraria o padrão do projeto de criptografar tudo com chave própria. O checkov CKV_AWS_91 está dispensado por isso. A trilha de chamadas administrativas vem do CloudTrail (fase 8) e a de requisições, dos logs do WAF.
+- **Proteção contra DDoS:** o Shield Standard já protege ALB e Route 53 sem custo. O Shield Advanced fica só no desenho (D-08).
+- **Não usado:** CloudFront (o objetivo é failover regional com Route 53, D-07), API Gateway, Network Load Balancer, AWS Global Accelerator (outro caminho para failover entre regiões, com custo fixo), AWS Firewall Manager e Cognito.

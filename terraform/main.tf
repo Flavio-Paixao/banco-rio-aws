@@ -125,3 +125,33 @@ module "s3_data" {
   primary_kms_key_arn = module.kms.data_key_arn
   dr_kms_key_arn      = module.kms.data_key_replica_arn
 }
+
+# ==========================================
+# Module: edge (ALB + ACM + WAF, uma instancia por regiao)
+# ==========================================
+
+module "edge_primary" {
+  source = "./modules/edge"
+
+  project_name          = var.project_name
+  region_label          = "primaria"
+  public_subnet_ids     = module.network_primary.public_subnet_ids
+  alb_security_group_id = module.network_primary.alb_security_group_id
+  domain_name           = var.domain_name
+  logs_kms_key_arn      = module.kms.logs_key_arn
+}
+
+module "edge_dr" {
+  source = "./modules/edge"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  project_name          = var.project_name
+  region_label          = "dr"
+  public_subnet_ids     = module.network_dr.public_subnet_ids
+  alb_security_group_id = module.network_dr.alb_security_group_id
+  domain_name           = var.domain_name
+  logs_kms_key_arn      = module.kms.logs_key_replica_arn
+}

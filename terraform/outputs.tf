@@ -82,3 +82,13 @@ output "s3_destination_bucket_arn" {
   description = "Bucket de dados replicado na regiao de DR"
   value       = module.s3_data.destination_bucket_arn
 }
+
+output "alb_primary_dns_name" {
+  description = "DNS do ALB na regiao primaria"
+  value       = module.edge_primary.alb_dns_name
+}
+
+output "alb_dr_dns_name" {
+  description = "DNS do ALB na regiao de DR"
+  value       = module.edge_dr.alb_dns_name
+}

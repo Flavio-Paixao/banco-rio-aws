@@ -43,3 +43,9 @@ variable "dr_vpc_cidr" {
   type        = string
   default     = "10.1.0.0/16"
 }
+
+variable "domain_name" {
+  description = "Dominio ficticio do banco. Usado nos certificados e, na fase 7, no DNS. Nao e um dominio real"
+  type        = string
+  default     = "banco-rio.example.com"
+}
