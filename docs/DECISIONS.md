@@ -35,7 +35,7 @@ Cada decisão tem o motivo, o que foi deixado de lado e o que se abre mão. Este
 
 | Origem | Módulo | Adaptação prevista | Fase |
 | --- | --- | --- | --- |
-| seguros-horizonte | networking | Sem NAT; instanciado duas vezes (provider padrão e `aws.dr`); Flow Logs ligados | 2 |
+| seguros-horizonte | networking | Sem NAT; instanciado duas vezes (provider padrão e `aws.dr`); Flow Logs ligados na fase 3 (D-11) | 2 |
 | seguros-horizonte | kms | Chaves multi-region e réplica no DR; `kms:ViaService` por região | 3 |
 | seguros-horizonte | rds | Global cluster; classe sem `db.t*`; cluster secundário no DR | 4 |
 | seguros-horizonte | storage | Replicação entre regiões (CRR) e chave KMS na réplica | 5 |
@@ -62,3 +62,16 @@ Preenchido na fase 10, junto com o COST-ANALYSIS, com custos conferidos na AWS P
 ## D-09. Alinhamento a boas práticas (sem alegar conformidade)
 
 O projeto é **alinhado a boas práticas** de segurança e resiliência (criptografia em repouso, mínimo privilégio, trilha de auditoria, backups entre regiões). Não afirma conformidade com BACEN, LGPD, PCI-DSS ou SOX. Cada fase indica o que foi apenas desenhado.
+
+## D-10. Rede: sem NAT, sem camada de aplicação, security groups mínimos
+
+- **Estrutura por região:** VPC /16, 2 subnets públicas e 2 privadas (uma de cada por AZ), Internet Gateway e uma route table pública e uma privada. Primária 10.0.0.0/16 e DR 10.1.0.0/16, sem sobreposição, o que deixaria a porta aberta para um peering futuro.
+- **Subnets privadas sem rota para a internet:** não há NAT Gateway (D-04). A route table privada tem só a rota local da VPC.
+- **SG do ALB:** aceita HTTP (80) e HTTPS (443) da internet e não tem regra de saída, porque o ALB responde com resposta fixa. A porta 80 aberta ao mundo é esperada num ALB público (o checkov CKV_AWS_260 foi dispensado só nesse SG).
+- **SG do banco:** aceita 5432 só dos CIDRs das subnets privadas e não tem regra de saída. No módulo do seguros-horizonte a origem era o SG da aplicação; como aqui não há camada de aplicação, a origem passou a ser o CIDR das subnets privadas, onde uma aplicação futura ficaria. A replicação do Aurora entre regiões não passa por este SG.
+- **SG default da VPC:** adotado e esvaziado, para que nada use um SG com regras por engano.
+- **Não usado:** NACLs customizadas (os SGs já controlam o acesso e as NACLs são sem estado, o que complica sem ganho aqui), VPC endpoints (sem computação nas subnets privadas para usá-los) e peering ou Transit Gateway entre as VPCs (D-07).
+
+## D-11. VPC Flow Logs ficam para a fase 3
+
+Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave KMS de logs, que só existe a partir da fase 3. Criá-los antes obrigaria a criar o log group sem criptografia e alterá-lo depois. O checkov CKV2_AWS_11 está dispensado na VPC com esta justificativa, e o skip sai quando os Flow Logs forem ligados.

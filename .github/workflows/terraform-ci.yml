@@ -42,10 +42,10 @@ jobs:
       - name: terraform fmt -check
         run: terraform fmt -check -recursive -diff
 
-      # -backend=false: baixa o provider
+      # -backend=false: baixa o provider (versao fixada no .terraform.lock.hcl)
       # sem tocar em state nem em conta AWS
       - name: terraform init
-        run: terraform init -backend=false -input=false
+        run: terraform init -backend=false -input=false -lockfile=readonly
 
       - name: terraform validate
         run: terraform validate

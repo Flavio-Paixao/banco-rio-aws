@@ -9,11 +9,31 @@ output "dr_region" {
 }
 
 output "primary_azs" {
-  description = "AZs disponiveis na regiao primaria"
-  value       = data.aws_availability_zones.primary.names
+  description = "AZs usadas na regiao primaria"
+  value       = local.primary_azs
 }
 
 output "dr_azs" {
-  description = "AZs disponiveis na regiao de DR"
-  value       = data.aws_availability_zones.dr.names
+  description = "AZs usadas na regiao de DR"
+  value       = local.dr_azs
+}
+
+output "primary_vpc_id" {
+  description = "ID da VPC na regiao primaria"
+  value       = module.network_primary.vpc_id
+}
+
+output "dr_vpc_id" {
+  description = "ID da VPC na regiao de DR"
+  value       = module.network_dr.vpc_id
+}
+
+output "primary_private_subnet_ids" {
+  description = "Subnets privadas da regiao primaria"
+  value       = module.network_primary.private_subnet_ids
+}
+
+output "dr_private_subnet_ids" {
+  description = "Subnets privadas da regiao de DR"
+  value       = module.network_dr.private_subnet_ids
 }

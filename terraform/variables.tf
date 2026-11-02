@@ -31,3 +31,15 @@ variable "dr_region" {
     error_message = "dr_region deve ter o formato de uma regiao AWS, por exemplo us-east-1."
   }
 }
+
+variable "primary_vpc_cidr" {
+  description = "CIDR da VPC na regiao primaria (/16)"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "dr_vpc_cidr" {
+  description = "CIDR da VPC na regiao de DR (/16). Nao pode se sobrepor ao da primaria"
+  type        = string
+  default     = "10.1.0.0/16"
+}

@@ -22,8 +22,9 @@ Shield Advanced, CloudHSM e VPN dedicada ficam só no desenho e na análise de c
 | Fase | Entrega | Situação |
 | --- | --- | --- |
 | 0 | Escopo e plano | Concluída |
-| 1 | Base do repositório e providers das duas regiões | Em andamento |
-| 2 a 10 | Rede, KMS, Aurora, S3, borda, DNS, segurança, backup e monitoramento, documentação | Não iniciadas |
+| 1 | Base do repositório e providers das duas regiões | Concluída |
+| 2 | Rede nas duas regiões | Em andamento |
+| 3 a 10 | KMS, Aurora, S3, borda, DNS, segurança, backup e monitoramento, documentação | Não iniciadas |
 
 ## Como validar
 
