@@ -35,7 +35,8 @@ locals {
 #    e vem desta conta (kms:CallerAccount).
 #
 # 3) Uso da chave de logs: so o servico CloudWatch Logs da regiao, e so para log
-#    groups do projeto (encryption context). CloudTrail entra na fase 8.
+#    groups do projeto (encryption context), mais a trilha do CloudTrail e o uso do
+#    bucket de auditoria via S3 (fase 8).
 #
 # Cada regiao tem a sua policy porque ViaService e o servico mudam com a regiao.
 
@@ -175,6 +176,70 @@ data "aws_iam_policy_document" "logs_key" {
         "arn:aws:logs:${each.value}:${local.account_id}:log-group:/${var.project_name}/*",
         "arn:aws:logs:${each.value}:${local.account_id}:log-group:aws-waf-logs-${var.project_name}*",
       ]
+    }
+  }
+
+  # CloudTrail criptografa os arquivos da trilha com esta chave. As condicoes limitam
+  # a trilhas desta conta cujo nome comeca com o nome do projeto.
+  statement {
+    sid       = "AllowCloudTrailEncrypt"
+    effect    = "Allow"
+    actions   = ["kms:GenerateDataKey*"]
+    resources = ["*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:cloudtrail:*:${local.account_id}:trail/${var.project_name}-*"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:cloudtrail:arn"
+      values   = ["arn:aws:cloudtrail:*:${local.account_id}:trail/*"]
+    }
+  }
+
+  statement {
+    sid       = "AllowCloudTrailDescribe"
+    effect    = "Allow"
+    actions   = ["kms:DescribeKey"]
+    resources = ["*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+  }
+
+  # O bucket de auditoria (S3) e criptografado com esta chave. Quem grava nele (por exemplo
+  # a role do AWS Config) usa a chave via S3, e so se o IAM tambem permitir.
+  statement {
+    sid       = "AllowAuditBucketThroughS3"
+    effect    = "Allow"
+    actions   = ["kms:GenerateDataKey*", "kms:Decrypt", "kms:DescribeKey"]
+    resources = ["*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = [local.account_root]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${each.value}.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:CallerAccount"
+      values   = [local.account_id]
     }
   }
 }

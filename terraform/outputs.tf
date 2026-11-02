@@ -102,3 +102,13 @@ output "dns_primary_health_check_id" {
   description = "ID do health check da regiao primaria"
   value       = module.dns.primary_health_check_id
 }
+
+output "audit_bucket_arn" {
+  description = "Bucket de auditoria (CloudTrail e Config)"
+  value       = module.audit_trail.audit_bucket_arn
+}
+
+output "cloudtrail_arn" {
+  description = "Trilha multi-regiao do CloudTrail"
+  value       = module.audit_trail.trail_arn
+}
