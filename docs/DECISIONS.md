@@ -29,7 +29,7 @@ Cada decisão tem o motivo, o que foi deixado de lado e o que se abre mão. Este
 ## D-05. Banco: Aurora PostgreSQL Global Database
 
 - **Motivo:** PostgreSQL é o motor dos módulos reaproveitados (seguros-horizonte) e o Global Database faz a réplica entre regiões.
-- **Atenção:** o Global Database não aceita classes `db.t*`; o módulo reaproveitado usava `db.t3.medium` e será adaptado na fase 4.
+- **Classe da instância:** a documentação da AWS exige para o Global Database classes otimizadas para memória e recomenda `db.r5` ou superior. O módulo reaproveitado usava `db.t3.medium` (burstable), então a fase 4 usa `db.r6g.large` ou `db.r5.large` (D-14).
 
 ## D-06. Reuso dos cases anteriores
 
@@ -91,3 +91,18 @@ Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave 
 - **Rotação anual** ligada na primária; a réplica acompanha a primária.
 - **Resource `*` nas key policies:** numa key policy, `*` significa "esta chave". Os skips do checkov CKV_AWS_109, 111 e 356 nas policies apontam para esta decisão.
 - **Abrimos mão de:** chaves gerenciadas pela AWS (sem controle da policy), uma chave por serviço (mais isolamento, mais custo) e CloudHSM (D-08).
+
+## D-14. Aurora Global Database
+
+- **Estrutura:** um `aws_rds_global_cluster`, um cluster primário em sa-east-1 (writer e reader em 2 AZs) e um cluster secundário em us-east-1 (1 instância, somente leitura). O secundário é promovido num failover regional.
+- **Senha:** a documentação da AWS diz que o Secrets Manager **não gerencia** a senha de clusters que fazem parte de um Global Database (`manage_master_user_password` do módulo antigo não serve aqui). A senha é gerada com `random_password`, guardada num segredo do Secrets Manager criptografado com a chave de dados e **replicado para us-east-1** com a réplica da chave. Nada de senha no código.
+- **Limite assumido:** a senha também fica no **state**, que é local e está no `.gitignore`. Num ambiente real, o state iria para um backend criptografado com acesso restrito (D-03), ou a senha seria passada de outra forma. Rotação automática exigiria uma Lambda e fica só no desenho (checkov CKV2_AWS_57 dispensado).
+- **Classe da instância:** os data sources `aws_rds_orderable_db_instance` perguntam à AWS, em cada região, se motor + versão + classe existem, se aceitam Global Database e se suportam Performance Insights e Enhanced Monitoring. Se não, o `plan` falha com mensagem clara. Preferência: `db.r6g.large`, depois `db.r5.large`.
+- **Versão do motor:** 15.19, a mesma conferida no seguros-horizonte. A checagem acima cobre a combinação nas duas regiões.
+- **Criptografia:** o primário usa a chave de dados e o secundário usa a **réplica** dela em us-east-1 (D-13). O argumento `source_region` é passado no secundário porque a AWS o exige para réplica criptografada; só um `apply` confirmaria a combinação.
+- **Backup:** backup automático nativo do Aurora por 7 dias. O plano do AWS Backup com cópia entre regiões entra na fase 9 (checkov CKV2_AWS_8 dispensado até lá).
+- **Estudo, não produção:** `deletion_protection = false` e `skip_final_snapshot = true` para o projeto poder ser destruído. Em produção seriam `true` e `false`.
+- **Auditoria dentro do banco:** a extensão `pgaudit` seria o próximo passo, mas não foi codificada porque os nomes dos parâmetros só seriam confirmados por um `apply`. Fica como desenho.
+- **Metas de projeto (não são medições):** RPO do banco na ordem de segundos, apoiado na latência de replicação que a AWS descreve como tipicamente abaixo de um segundo, e RTO na faixa de minutos com failover regional. Nenhum desses valores foi medido.
+- **Failover e switchover:** *switchover* é a troca planejada, sem perda de dados; *failover* é a recuperação após queda da região primária e pode perder as últimas transações ainda não replicadas. Os dois exigem versões de motor iguais nos clusters.
+- **Não usado:** Aurora Serverless v2 (o Global Database com ACU mínimo recomendado de 8 sai mais caro e é outro estudo), RDS Proxy (sem camada de aplicação), Aurora Auto Scaling (não suportado em clusters secundários) e Blue/Green (não suportado com Global Database).

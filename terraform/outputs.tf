@@ -57,3 +57,18 @@ output "logs_key_replica_arn" {
   description = "Replica da chave de logs (DR, us-east-1)"
   value       = module.kms.logs_key_replica_arn
 }
+
+output "aurora_global_cluster_id" {
+  description = "ID do Aurora Global Database"
+  value       = module.aurora_global.global_cluster_id
+}
+
+output "aurora_instance_class" {
+  description = "Classe de instancia escolhida para o Aurora"
+  value       = module.aurora_global.instance_class
+}
+
+output "aurora_master_secret_arn" {
+  description = "ARN do segredo com as credenciais do administrador (o valor nao e exposto)"
+  value       = module.aurora_global.master_secret_arn
+}

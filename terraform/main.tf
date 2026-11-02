@@ -84,3 +84,27 @@ module "flow_logs_dr" {
   vpc_id       = module.network_dr.vpc_id
   kms_key_arn  = module.kms.logs_key_replica_arn
 }
+
+# ==========================================
+# Module: aurora_global (Aurora PostgreSQL Global Database: primario em sa-east-1, secundario em us-east-1)
+# ==========================================
+
+module "aurora_global" {
+  source = "./modules/aurora_global"
+
+  providers = {
+    aws    = aws
+    aws.dr = aws.dr
+  }
+
+  project_name = var.project_name
+
+  primary_private_subnet_ids   = module.network_primary.private_subnet_ids
+  primary_azs                  = local.primary_azs
+  primary_db_security_group_id = module.network_primary.db_security_group_id
+  primary_kms_key_arn          = module.kms.data_key_arn
+
+  dr_private_subnet_ids   = module.network_dr.private_subnet_ids
+  dr_db_security_group_id = module.network_dr.db_security_group_id
+  dr_kms_key_arn          = module.kms.data_key_replica_arn
+}

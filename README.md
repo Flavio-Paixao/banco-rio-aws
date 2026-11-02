@@ -24,8 +24,9 @@ Shield Advanced, CloudHSM e VPN dedicada ficam só no desenho e na análise de c
 | 0 | Escopo e plano | Concluída |
 | 1 | Base do repositório e providers das duas regiões | Concluída |
 | 2 | Rede nas duas regiões | Concluída |
-| 3 | KMS multi-region e VPC Flow Logs | Em andamento |
-| 4 a 10 | Aurora, S3, borda, DNS, segurança, backup e monitoramento, documentação | Não iniciadas |
+| 3 | KMS multi-region e VPC Flow Logs | Concluída |
+| 4 | Aurora Global Database | Em andamento |
+| 5 a 10 | S3, borda, DNS, segurança, backup e monitoramento, documentação | Não iniciadas |
 
 ## Como validar
 
