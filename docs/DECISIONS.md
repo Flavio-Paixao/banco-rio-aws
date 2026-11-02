@@ -155,3 +155,27 @@ Este projeto é **alinhado a boas práticas** de auditoria e detecção. Isso n�
 - **O que o plan não prova:** que a entrega do Config no bucket com KMS funciona, que as condições da key policy do CloudTrail batem, e que as checagens do Security Hub passam. Só um `apply` e uma semana de uso diriam.
 - **Custo:** GuardDuty, Config e os data events do CloudTrail cobram por volume. Entram no COST-ANALYSIS (fase 10), com valores conferidos na AWS Pricing Calculator.
 - **Não usado:** Organization trail e Security Lake (escopo B), CloudTrail Insights e CloudTrail Lake (custo), IAM Access Analyzer (barato e útil, fica como próximo passo), Macie e Inspector (D-07), Detective, Audit Manager, Network Firewall, conformance packs e remediação automática do Config.
+
+## D-19. Backup e monitoramento
+
+Este projeto é **alinhado a boas práticas** de backup e observabilidade. Isso não equivale a conformidade com BACEN, LGPD, PCI-DSS ou SOX, que não é afirmada.
+
+**Backup**
+
+- **Cofres:** um por região, criptografados com a chave de dados da região. O cofre do DR recebe as cópias do cofre primário.
+- **Plano:** uma regra diária às 05:00 UTC protege o cluster Aurora primário, com retenção de 35 dias, e copia cada ponto de recuperação para o cofre do DR com a mesma retenção. A seleção é pelo ARN do cluster, não por tag, para que o plano proteja só o que está escrito.
+- **Vault Lock em modo governance:** retenção mínima de 7 e máxima de 365 dias em cada cofre. Sem `changeable_for_days`, o modo é governance: quem tem a permissão específica ainda consegue remover o lock. Foi a escolha do Flávio.
+- **Só no desenho: modo compliance.** Depois da carência, o lock em compliance não pode ser removido nem pela conta raiz, e o cofre só some quando o último ponto de recuperação expira. Num banco real seria o modo certo para backups imutáveis; num projeto de estudo é um risco sem ganho.
+- **Chaves KMS:** a key policy da chave de dados ganhou o serviço `backup` em `kms:ViaService` (a policy continua limitada à conta). A role do backup recebe uma política com as duas chaves (origem e destino da cópia).
+- **S3 fora do plano:** o bucket de dados fica protegido por versionamento e replicação (D-15). O AWS Backup para S3 pede políticas extras e a confirmação de como ele usa a chave KMS do bucket; fica como próximo passo.
+- **Aurora:** o backup contínuo (PITR) do próprio Aurora segue ligado (7 dias, D-14). O plano do AWS Backup acrescenta retenção maior, cópia entre regiões e o lock.
+- **O que o plan não prova:** que o job de backup roda, que a cópia chega ao DR com a chave replicada, que a restauração funciona nem quanto tempo leva. Teste de restauração não foi feito e nenhum RTO ou RPO foi medido.
+
+**Monitoramento**
+
+- **Tópico SNS por região**, criptografado com a chave de logs. A key policy da chave de logs ganhou uma permissão para o CloudWatch e o EventBridge da conta gerarem a chave de dados (sem ela os alarmes não publicam num tópico com chave própria). A policy do tópico permite publicar só CloudWatch e EventBridge da conta e nega tráfego sem TLS. **Não há assinantes**: assinar um e-mail exige confirmação manual e é dado pessoal.
+- **Alarmes:** erros 5xx do ALB (as duas regiões); atraso de replicação do Aurora Global (limiar de alerta de 5000 ms, que é um valor de estudo e **não é o RPO**), lido na região do cluster secundário; status do health check do Route 53, em us-east-1 (dado ausente conta como falha).
+- **EventBridge:** achados do GuardDuty com severidade 7 ou mais e jobs de backup ou cópia com falha, em cada região, para o tópico de alertas.
+- **Painel:** um dashboard com atraso de replicação, health check e erros 5xx das duas regiões.
+- **Limite:** um alarme que dispara não faz o failover. Promover o Aurora secundário e redirecionar o tráfego continuam sendo passos documentados, sem automação (D-17).
+- **Não usado:** Security Hub com notificações próprias (já agrega os achados), CloudWatch Synthetics, X-Ray, Container Insights e Application Signals (não há aplicação), AWS Chatbot e Incident Manager (sem equipe de plantão), alarme composto, detecção de anomalias e notificações do cofre de backup por SNS (as regras do EventBridge cobrem as falhas).

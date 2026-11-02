@@ -29,8 +29,9 @@ Shield Advanced, CloudHSM e VPN dedicada ficam só no desenho e na análise de c
 | 5 | S3 com replicação entre regiões | Concluída |
 | 6 | Borda: ALB, ACM e WAF | Concluída |
 | 7 | DNS com failover | Concluída |
-| 8 | Segurança e auditoria | Em andamento |
-| 9 e 10 | Backup e monitoramento, documentação | Não iniciadas |
+| 8 | Segurança e auditoria | Concluída |
+| 9 | Backup e monitoramento | Em andamento |
+| 10 | Documentação final | Não iniciada |
 
 ## Como validar
 

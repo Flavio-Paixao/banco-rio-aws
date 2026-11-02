@@ -112,3 +112,28 @@ output "cloudtrail_arn" {
   description = "Trilha multi-regiao do CloudTrail"
   value       = module.audit_trail.trail_arn
 }
+
+output "backup_vault_primary_arn" {
+  description = "Cofre de backup na regiao primaria"
+  value       = module.backup_primary.vault_arn
+}
+
+output "backup_vault_dr_arn" {
+  description = "Cofre de backup na regiao de DR (recebe as copias)"
+  value       = module.backup_dr.vault_arn
+}
+
+output "alerts_topic_primary_arn" {
+  description = "Topico SNS de alertas na regiao primaria"
+  value       = module.monitoring_primary.alerts_topic_arn
+}
+
+output "alerts_topic_dr_arn" {
+  description = "Topico SNS de alertas na regiao de DR"
+  value       = module.monitoring_dr.alerts_topic_arn
+}
+
+output "dashboard_name" {
+  description = "Painel do CloudWatch com as duas regioes"
+  value       = module.dashboard.dashboard_name
+}

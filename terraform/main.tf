@@ -238,3 +238,83 @@ module "threat_detection_primary" {
   # O agregador so pode apontar para uma regiao onde o Security Hub ja esta ligado
   depends_on = [module.threat_detection_dr]
 }
+
+# ==========================================
+# Module: backup (cofres com Vault Lock; plano diario do Aurora com copia para o DR)
+# ==========================================
+
+module "backup_dr" {
+  source = "./modules/backup"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  project_name = var.project_name
+  region_label = "dr"
+  kms_key_arn  = module.kms.data_key_replica_arn
+}
+
+module "backup_primary" {
+  source = "./modules/backup"
+
+  project_name = var.project_name
+  region_label = "primaria"
+  kms_key_arn  = module.kms.data_key_arn
+  kms_key_arns = [module.kms.data_key_arn, module.kms.data_key_replica_arn]
+
+  create_plan   = true
+  resource_arns = [module.aurora_global.primary_cluster_arn]
+
+  enable_copy                = true
+  copy_destination_vault_arn = module.backup_dr.vault_arn
+}
+
+# ==========================================
+# Module: monitoring (alarmes, regras de eventos e topico de alertas, uma instancia por regiao)
+# ==========================================
+
+module "monitoring_primary" {
+  source = "./modules/monitoring"
+
+  project_name   = var.project_name
+  region_label   = "primaria"
+  kms_key_arn    = module.kms.logs_key_arn
+  alb_arn_suffix = module.edge_primary.alb_arn_suffix
+}
+
+module "monitoring_dr" {
+  source = "./modules/monitoring"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  project_name   = var.project_name
+  region_label   = "dr"
+  kms_key_arn    = module.kms.logs_key_replica_arn
+  alb_arn_suffix = module.edge_dr.alb_arn_suffix
+
+  # A metrica de atraso fica na regiao do cluster secundario e as do Route 53, em us-east-1:
+  # as duas sao lidas pela instancia do DR.
+  enable_replication_lag_alarm = true
+  aurora_secondary_cluster_id  = module.aurora_global.secondary_cluster_identifier
+  enable_health_check_alarm    = true
+  health_check_id              = module.dns.primary_health_check_id
+}
+
+# ==========================================
+# Module: dashboard (painel unico com as duas regioes)
+# ==========================================
+
+module "dashboard" {
+  source = "./modules/dashboard"
+
+  project_name                = var.project_name
+  primary_region              = var.primary_region
+  dr_region                   = var.dr_region
+  primary_alb_arn_suffix      = module.edge_primary.alb_arn_suffix
+  dr_alb_arn_suffix           = module.edge_dr.alb_arn_suffix
+  aurora_secondary_cluster_id = module.aurora_global.secondary_cluster_identifier
+  health_check_id             = module.dns.primary_health_check_id
+}
