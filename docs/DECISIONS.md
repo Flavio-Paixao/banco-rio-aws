@@ -129,3 +129,14 @@ Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave 
 - **Sem access logs do ALB:** eles só aceitam bucket com SSE-S3, não KMS, o que quebraria o padrão do projeto de criptografar tudo com chave própria. O checkov CKV_AWS_91 está dispensado por isso. A trilha de chamadas administrativas vem do CloudTrail (fase 8) e a de requisições, dos logs do WAF.
 - **Proteção contra DDoS:** o Shield Standard já protege ALB e Route 53 sem custo. O Shield Advanced fica só no desenho (D-08).
 - **Não usado:** CloudFront (o objetivo é failover regional com Route 53, D-07), API Gateway, Network Load Balancer, AWS Global Accelerator (outro caminho para failover entre regiões, com custo fixo), AWS Firewall Manager e Cognito.
+
+## D-17. DNS com failover no Route 53
+
+- **Estrutura:** uma zona hospedada para o domínio fictício, um health check HTTPS no ALB da região primária (`/health`, a cada 30 segundos, 3 falhas seguidas) e dois registros `A` do tipo alias com o mesmo nome: `PRIMARY` (ALB de sa-east-1, ligado ao health check) e `SECONDARY` (ALB de us-east-1).
+- **Tempo de troca (cálculo, não medição):** o Route 53 só declara a primária fora do ar depois de 3 falhas a 30 segundos, ou seja, cerca de 90 segundos, mais o tempo de cache de DNS nos clientes. Com intervalo de 10 segundos seria mais rápido e mais caro. Por isso o RTO de DNS está na faixa de minutos, como meta de projeto.
+- **`evaluate_target_health = false`:** o ALB não tem alvos registrados (D-04), então a decisão fica com o health check explícito, e não com a avaliação automática do alias.
+- **O que o failover de DNS não faz:** ele só muda para onde as pessoas são mandadas. Promover o cluster Aurora secundário a primário é um passo separado (failover do Global Database), que num ambiente real seria um procedimento documentado ou automatizado (por exemplo EventBridge e Lambda). Essa automação não foi codificada.
+- **Domínio fictício:** a zona existe no Route 53, mas não é delegada em registrador algum, então nada responderia na internet. Os registros de validação do certificado ACM também não foram criados, pelo mesmo motivo (D-16).
+- **Só no desenho:** DNSSEC (exigiria uma chave KMS assimétrica em us-east-1 e um registro DS no registrador) e query logging (exigiria um log group em us-east-1 com resource policy). Os dois checks do checkov (CKV2_AWS_38 e CKV2_AWS_39) estão dispensados nessa zona por isso.
+- **Alarme do health check:** as métricas do Route 53 só existem em us-east-1, que é a região de DR. O alarme entra na fase 9 e deve ser criado com o provider `aws.dr`.
+- **Não usado:** roteamento por latência ou geolocalização (outro objetivo), failover com health check também no secundário (custo extra), Route 53 Resolver e zonas privadas (sem tráfego interno entre VPCs), Application Recovery Controller (custo fixo alto e fora do escopo) e Global Accelerator.

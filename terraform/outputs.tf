@@ -92,3 +92,13 @@ output "alb_dr_dns_name" {
   description = "DNS do ALB na regiao de DR"
   value       = module.edge_dr.alb_dns_name
 }
+
+output "dns_zone_id" {
+  description = "ID da zona hospedada do Route 53"
+  value       = module.dns.zone_id
+}
+
+output "dns_primary_health_check_id" {
+  description = "ID do health check da regiao primaria"
+  value       = module.dns.primary_health_check_id
+}

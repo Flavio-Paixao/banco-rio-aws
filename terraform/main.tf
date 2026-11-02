@@ -155,3 +155,19 @@ module "edge_dr" {
   domain_name           = var.domain_name
   logs_kms_key_arn      = module.kms.logs_key_replica_arn
 }
+
+# ==========================================
+# Module: dns (Route 53: zona, health check e registros de failover)
+# ==========================================
+
+module "dns" {
+  source = "./modules/dns"
+
+  project_name = var.project_name
+  domain_name  = var.domain_name
+
+  primary_alb_dns_name = module.edge_primary.alb_dns_name
+  primary_alb_zone_id  = module.edge_primary.alb_zone_id
+  dr_alb_dns_name      = module.edge_dr.alb_dns_name
+  dr_alb_zone_id       = module.edge_dr.alb_zone_id
+}
