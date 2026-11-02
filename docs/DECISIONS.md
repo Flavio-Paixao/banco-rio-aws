@@ -57,7 +57,27 @@ Cada decisão tem o motivo, o que foi deixado de lado e o que se abre mão. Este
 
 ## D-08. Só no desenho: Shield Advanced, CloudHSM e VPN dedicada
 
-Preenchido na fase 10, junto com o COST-ANALYSIS, com custos conferidos na AWS Pricing Calculator.
+Os três ficaram **fora do código**, de propósito: cobram assinatura ou hora fixa alta, exigem contrato ou hardware que o `plan` não valida, e não mudam o que o case demonstra. Os custos de lista estão no COST-ANALYSIS (seção 3).
+
+**Shield Advanced**
+- **O que seria:** proteção ampliada contra DDoS para o ALB e o Route 53, com assinatura de 1 ano.
+- **O que o projeto já tem:** Shield Standard (sem custo adicional) nos recursos de borda e o WAF com limite de requisições por IP (D-16).
+- **Como entraria:** `aws_shield_subscription` e `aws_shield_protection` para os dois ALBs e para a zona hospedada, mais o alarme de DDoS no CloudWatch.
+- **Por que não está no código:** assinatura de 1 ano com cobrança mensal fixa de US$ 3.000 a preços de lista; é uma decisão financeira, não técnica, e não se desfaz com um `destroy`.
+
+**CloudHSM**
+- **O que seria:** HSMs dedicados, para quando uma exigência pede chaves em hardware sob controle exclusivo da instituição. Poderia sustentar um *custom key store* do KMS.
+- **O que o projeto já tem:** chaves KMS multi-region com rotação anual e key policies de mínimo privilégio (D-13). O KMS usa HSMs gerenciados pela AWS.
+- **Como entraria:** um cluster em cada região, com pelo menos 2 HSMs em AZs diferentes, e um custom key store no KMS apontando para ele.
+- **Por que não está no código:** custo fixo por hora que passa de US$ 6 mil por mês para 4 HSMs, ativação manual do cluster com certificados e usuários criados fora do Terraform, e nenhum requisito do case que o KMS comum não atenda.
+
+**VPN dedicada (Site-to-Site VPN e Direct Connect)**
+- **O que seria:** ligação privada entre o data center do banco e as VPCs, em vez de tráfego pela internet.
+- **O que o projeto já tem:** nada além do tráfego público pelo ALB. Não há data center fictício para conectar.
+- **Como entraria:** Virtual Private Gateway ou Transit Gateway, Customer Gateway e conexões de VPN, ou uma porta de Direct Connect com circuito de operadora.
+- **Por que não está no código:** o Customer Gateway exige um IP público real, e o Direct Connect depende de contrato com operadora e de um cross-connect fora da AWS. Nenhum dos dois pode ser validado com `plan` de forma útil.
+
+**Abrimos mão de:** provar esses três itens em código. Num banco real, a decisão de incluí-los pertence a quem responde por risco e orçamento.
 
 ## D-09. Alinhamento a boas práticas (sem alegar conformidade)
 
@@ -85,7 +105,7 @@ Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave 
 ## D-13. KMS: duas chaves multi-region
 
 - **Duas chaves, uma por finalidade:** dados (Aurora e S3) e logs (Flow Logs, CloudTrail, WAF). Se uma vazar ou for desativada, a outra não é afetada, e cada uma tem sua trilha no CloudTrail.
-- **Multi-region:** a chave primária fica em sa-east-1 e a réplica em us-east-1 tem o mesmo ID e o mesmo material. Dado criptografado numa região pode ser descriptografado na outra sem reencriptar, o que sustenta o Aurora Global e o S3 CRR. A réplica é uma chave própria, com key policy e custo próprios (aproximadamente US$ 1 por chave por mês, a confirmar na fase 10).
+- **Multi-region:** a chave primária fica em sa-east-1 e a réplica em us-east-1 tem o mesmo ID e o mesmo material. Dado criptografado numa região pode ser descriptografado na outra sem reencriptar, o que sustenta o Aurora Global e o S3 CRR. A réplica é uma chave própria, com key policy e custo próprios (US$ 1 por chave por mês na Price List consultada em 02/11/2026, ver COST-ANALYSIS).
 - **Key policy de dados:** a conta administra mas não usa direto; o uso só vale via RDS ou S3 da região (`kms:ViaService`), de chamadas desta conta (`kms:CallerAccount`). Grants só para recursos da AWS.
 - **Key policy de logs:** só o CloudWatch Logs da região, e só para log groups cujo nome começa com `/banco-rio/` ou `aws-waf-logs-banco-rio`. O CloudTrail entra na fase 8.
 - **Rotação anual** ligada na primária; a réplica acompanha a primária.
@@ -153,7 +173,7 @@ Este projeto é **alinhado a boas práticas** de auditoria e detecção. Isso n�
 - **Security Hub:** ligado em cada região, só com o padrão AWS Foundational Security Best Practices (os padrões default ficam desligados). Os achados da região de DR são agregados na primária. Os padrões CIS e PCI DSS não foram ativados; ativar um padrão mostra checagens, não prova conformidade.
 - **AWS Config:** um gravador por região (recursos globais só na primária) e quatro regras gerenciadas por região: bucket S3 sem leitura pública, S3 só com HTTPS, storage do RDS criptografado e CloudTrail ativo. O Security Hub depende do Config para várias de suas checagens.
 - **O que o plan não prova:** que a entrega do Config no bucket com KMS funciona, que as condições da key policy do CloudTrail batem, e que as checagens do Security Hub passam. Só um `apply` e uma semana de uso diriam.
-- **Custo:** GuardDuty, Config e os data events do CloudTrail cobram por volume. Entram no COST-ANALYSIS (fase 10), com valores conferidos na AWS Pricing Calculator.
+- **Custo:** GuardDuty, Config e os data events do CloudTrail cobram por volume. Entram no COST-ANALYSIS (seção 2) como preços unitários da AWS Price List; não há volume medido para calcular totais.
 - **Não usado:** Organization trail e Security Lake (escopo B), CloudTrail Insights e CloudTrail Lake (custo), IAM Access Analyzer (barato e útil, fica como próximo passo), Macie e Inspector (D-07), Detective, Audit Manager, Network Firewall, conformance packs e remediação automática do Config.
 
 ## D-19. Backup e monitoramento
