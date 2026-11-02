@@ -22,3 +22,8 @@ output "web_acl_arn" {
   description = "ARN do WAF"
   value       = aws_wafv2_web_acl.main.arn
 }
+
+output "alb_arn_suffix" {
+  description = "Parte final do ARN do ALB (dimensao das metricas do CloudWatch)"
+  value       = aws_lb.main.arn_suffix
+}

@@ -161,7 +161,7 @@ resource "aws_rds_cluster_parameter_group" "primary" {
 }
 
 resource "aws_rds_cluster" "primary" {
-  #checkov:skip=CKV2_AWS_8:Backup por plano do AWS Backup entra na fase 9; ate la vale o backup nativo do Aurora (DECISIONS D-14)
+  #checkov:skip=CKV2_AWS_8:O plano do AWS Backup esta no modulo backup (DECISIONS D-19); o checkov nao liga recursos de modulos diferentes
   #checkov:skip=CKV_AWS_139:Projeto de estudo precisa poder ser destruido (DECISIONS D-14)
   cluster_identifier        = "${var.project_name}-aurora-primary"
   global_cluster_identifier = aws_rds_global_cluster.main.id
@@ -309,7 +309,7 @@ resource "aws_rds_cluster_parameter_group" "dr" {
 }
 
 resource "aws_rds_cluster" "secondary" {
-  #checkov:skip=CKV2_AWS_8:Backup por plano do AWS Backup entra na fase 9; ate la vale o backup nativo do Aurora (DECISIONS D-14)
+  #checkov:skip=CKV2_AWS_8:O plano do AWS Backup esta no modulo backup (DECISIONS D-19); o checkov nao liga recursos de modulos diferentes
   #checkov:skip=CKV_AWS_139:Projeto de estudo precisa poder ser destruido (DECISIONS D-14)
   provider = aws.dr
 

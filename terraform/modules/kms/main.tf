@@ -31,12 +31,12 @@ locals {
 #    policy, replicar, agendar exclusao), mas NAO criptografa/descriptografa direto.
 #    Manter a conta aqui evita "chave orfa".
 #
-# 2) Uso da chave de dados: so quando a chamada passa por RDS ou S3 (kms:ViaService)
+# 2) Uso da chave de dados: so quando a chamada passa por RDS, S3 ou AWS Backup (kms:ViaService)
 #    e vem desta conta (kms:CallerAccount).
 #
 # 3) Uso da chave de logs: so o servico CloudWatch Logs da regiao, e so para log
 #    groups do projeto (encryption context), mais a trilha do CloudTrail e o uso do
-#    bucket de auditoria via S3 (fase 8).
+#    bucket de auditoria via S3 (fase 8) e a publicacao de alertas no SNS (fase 9).
 #
 # Cada regiao tem a sua policy porque ViaService e o servico mudam com a regiao.
 
@@ -88,7 +88,7 @@ data "aws_iam_policy_document" "data_key" {
   }
 
   statement {
-    sid       = "UseOnlyThroughRdsAndS3"
+    sid       = "UseOnlyThroughRdsS3AndBackup"
     effect    = "Allow"
     actions   = local.key_usage_actions
     resources = ["*"]
@@ -101,7 +101,7 @@ data "aws_iam_policy_document" "data_key" {
     condition {
       test     = "StringEquals"
       variable = "kms:ViaService"
-      values   = ["rds.${each.value}.amazonaws.com", "s3.${each.value}.amazonaws.com"]
+      values   = ["rds.${each.value}.amazonaws.com", "s3.${each.value}.amazonaws.com", "backup.${each.value}.amazonaws.com"]
     }
 
     condition {
@@ -111,7 +111,7 @@ data "aws_iam_policy_document" "data_key" {
     }
   }
 
-  # RDS e S3 criam "grants" para usar a chave em segundo plano (backups, replicas, replicacao).
+  # RDS, S3 e AWS Backup criam "grants" para usar a chave em segundo plano (backups, replicas, replicacao).
   # So permitimos grant para um recurso da AWS, nunca para uma pessoa.
   statement {
     sid       = "AllowGrantsForAwsResources"
@@ -127,7 +127,7 @@ data "aws_iam_policy_document" "data_key" {
     condition {
       test     = "StringEquals"
       variable = "kms:ViaService"
-      values   = ["rds.${each.value}.amazonaws.com", "s3.${each.value}.amazonaws.com"]
+      values   = ["rds.${each.value}.amazonaws.com", "s3.${each.value}.amazonaws.com", "backup.${each.value}.amazonaws.com"]
     }
 
     condition {
@@ -214,6 +214,26 @@ data "aws_iam_policy_document" "logs_key" {
     principals {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
+    }
+  }
+
+  # Topicos SNS de alertas (fase 9) sao criptografados com esta chave. Alarmes do CloudWatch e
+  # regras do EventBridge so conseguem publicar se puderem gerar a chave de dados.
+  statement {
+    sid       = "AllowAlarmsAndRulesToPublishToSns"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt", "kms:GenerateDataKey*"]
+    resources = ["*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudwatch.amazonaws.com", "events.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
     }
   }
 

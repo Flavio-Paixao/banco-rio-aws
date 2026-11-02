@@ -32,3 +32,8 @@ output "instance_class" {
   description = "Classe de instancia escolhida (primaria)"
   value       = data.aws_rds_orderable_db_instance.primary.instance_class
 }
+
+output "secondary_cluster_identifier" {
+  description = "Identificador do cluster secundario (dimensao das metricas do CloudWatch)"
+  value       = aws_rds_cluster.secondary.cluster_identifier
+}

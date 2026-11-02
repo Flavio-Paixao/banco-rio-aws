@@ -90,7 +90,7 @@ Cole o `validate` e o final do `plan`. Se algo der erro, cole a mensagem inteira
 
 ## 9. Para explicar em entrevista
 
-- **A replicação é um backup?** Não. Ela copia também as mudanças e sobrescritas. Por isso existem o versionamento, as marcas de exclusão replicadas e, na fase 9, o AWS Backup.
+- **A replicação é um backup?** Não. Ela copia também as mudanças e sobrescritas. Por isso existem o versionamento, as marcas de exclusão replicadas e, na fase 9, o AWS Backup para o Aurora. O bucket de dados continua protegido só por versionamento e replicação; incluí-lo no AWS Backup é um próximo passo (D-19).
 - **Qual é o RPO dos objetos?** Uma meta de projeto na faixa de minutos, sem garantia, porque o RTC não está ligado.
 - **Por que o destino tem outra chave?** Cada região precisa de uma chave local; a chave multi-region permite que a réplica seja equivalente à primária.
 - **Por que a role tem condições de KMS?** Para que ela só use as chaves via S3 e só para estes buckets.
