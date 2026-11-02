@@ -171,3 +171,70 @@ module "dns" {
   dr_alb_dns_name      = module.edge_dr.alb_dns_name
   dr_alb_zone_id       = module.edge_dr.alb_zone_id
 }
+
+# ==========================================
+# Module: audit_trail (bucket de auditoria e CloudTrail multi-regiao)
+# ==========================================
+
+module "audit_trail" {
+  source = "./modules/audit_trail"
+
+  project_name     = var.project_name
+  logs_kms_key_arn = module.kms.logs_key_arn
+  data_bucket_arns = [module.s3_data.source_bucket_arn, module.s3_data.destination_bucket_arn]
+}
+
+# ==========================================
+# Module: config_recorder (AWS Config em cada regiao)
+# ==========================================
+
+module "config_primary" {
+  source = "./modules/config_recorder"
+
+  project_name            = var.project_name
+  region_label            = "primaria"
+  record_global_resources = true # recursos globais (IAM) ficam so numa regiao
+  audit_bucket_id         = module.audit_trail.audit_bucket_id
+  audit_bucket_arn        = module.audit_trail.audit_bucket_arn
+  logs_kms_key_arn        = module.kms.logs_key_arn
+}
+
+module "config_dr" {
+  source = "./modules/config_recorder"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  project_name            = var.project_name
+  region_label            = "dr"
+  record_global_resources = false
+  audit_bucket_id         = module.audit_trail.audit_bucket_id
+  audit_bucket_arn        = module.audit_trail.audit_bucket_arn
+  logs_kms_key_arn        = module.kms.logs_key_arn
+}
+
+# ==========================================
+# Module: threat_detection (GuardDuty e Security Hub em cada regiao)
+# ==========================================
+
+module "threat_detection_dr" {
+  source = "./modules/threat_detection"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  project_name = var.project_name
+}
+
+module "threat_detection_primary" {
+  source = "./modules/threat_detection"
+
+  project_name        = var.project_name
+  enable_aggregation  = true
+  aggregation_regions = [var.dr_region]
+
+  # O agregador so pode apontar para uma regiao onde o Security Hub ja esta ligado
+  depends_on = [module.threat_detection_dr]
+}
