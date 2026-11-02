@@ -72,3 +72,13 @@ output "aurora_master_secret_arn" {
   description = "ARN do segredo com as credenciais do administrador (o valor nao e exposto)"
   value       = module.aurora_global.master_secret_arn
 }
+
+output "s3_source_bucket_arn" {
+  description = "Bucket de dados na regiao primaria"
+  value       = module.s3_data.source_bucket_arn
+}
+
+output "s3_destination_bucket_arn" {
+  description = "Bucket de dados replicado na regiao de DR"
+  value       = module.s3_data.destination_bucket_arn
+}

@@ -106,3 +106,15 @@ Os Flow Logs vão para o CloudWatch Logs e devem ser criptografados com a chave 
 - **Metas de projeto (não são medições):** RPO do banco na ordem de segundos, apoiado na latência de replicação que a AWS descreve como tipicamente abaixo de um segundo, e RTO na faixa de minutos com failover regional. Nenhum desses valores foi medido.
 - **Failover e switchover:** *switchover* é a troca planejada, sem perda de dados; *failover* é a recuperação após queda da região primária e pode perder as últimas transações ainda não replicadas. Os dois exigem versões de motor iguais nos clusters.
 - **Não usado:** Aurora Serverless v2 (o Global Database com ACU mínimo recomendado de 8 sai mais caro e é outro estudo), RDS Proxy (sem camada de aplicação), Aurora Auto Scaling (não suportado em clusters secundários) e Blue/Green (não suportado com Global Database).
+
+## D-15. S3 com replicação entre regiões (CRR)
+
+- **Estrutura:** um bucket de dados em sa-east-1 (origem) e outro em us-east-1 (destino). Os dois têm versionamento (obrigatório para replicar), bloqueio total de acesso público, criptografia SSE-KMS com Bucket Key, ciclo de vida para versões antigas e uma policy que nega qualquer acesso sem HTTPS.
+- **Chaves:** a origem usa a chave de dados e o destino usa a **réplica** dela (D-13). Os objetos replicados são recriptografados com a chave do DR.
+- **Role de replicação:** assumida só pelo `s3.amazonaws.com`, com permissão de ler as versões da origem, gravar no destino e usar cada chave KMS só via S3 da região respectiva e só para os dois buckets. Com Bucket Keys ligadas, o contexto de criptografia usa o ARN do bucket, então a condição aceita o ARN do bucket e o do objeto. A política segue o exemplo da documentação da AWS; só um `apply` confirmaria que a replicação funciona de fato.
+- **Retenção:** versões antigas vão para o Glacier após 90 dias e expiram após 2555 dias (7 anos). É uma escolha de projeto, não uma exigência legal confirmada.
+- **Desenho dos cases anteriores:** o módulo de storage do seguros-horizonte tinha três buckets (dados, backups, logs). Aqui ficam só os de dados. O bucket de logs entra com o CloudTrail na fase 8, e os backups passam pelo AWS Backup na fase 9.
+- **Limites da replicação:** vale só para objetos novos depois que a regra existe (objetos antigos exigiriam S3 Batch Replication, não usado); a exclusão de uma versão específica não é replicada, só as marcas de exclusão; e sem o Replication Time Control a AWS não dá garantia de tempo de replicação. O RTC (meta de 15 minutos) tem custo extra e fica só no desenho.
+- **Meta de projeto (não é medição):** RPO dos objetos na faixa de minutos, sem garantia contratual.
+- **Skips do checkov:** CKV_AWS_144 só no bucket de destino (replicar de volta não é necessário); CKV_AWS_18 e CKV2_AWS_62 nos dois buckets (sem server access logging e sem consumidor de eventos; a trilha de acessos vem do CloudTrail).
+- **Não usado:** S3 Object Lock (irreversível em modo compliance; decisão adiada), S3 Multi-Region Access Points (outro estudo), Replication Time Control, Intelligent-Tiering, Macie (D-07) e replicação para uma terceira região.

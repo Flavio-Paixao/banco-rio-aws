@@ -108,3 +108,20 @@ module "aurora_global" {
   dr_db_security_group_id = module.network_dr.db_security_group_id
   dr_kms_key_arn          = module.kms.data_key_replica_arn
 }
+
+# ==========================================
+# Module: s3_replicated (bucket de dados em sa-east-1 com replicacao para us-east-1)
+# ==========================================
+
+module "s3_data" {
+  source = "./modules/s3_replicated"
+
+  providers = {
+    aws    = aws
+    aws.dr = aws.dr
+  }
+
+  project_name        = var.project_name
+  primary_kms_key_arn = module.kms.data_key_arn
+  dr_kms_key_arn      = module.kms.data_key_replica_arn
+}
